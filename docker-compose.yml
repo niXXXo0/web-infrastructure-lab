@@ -1,0 +1,63 @@
+services:
+
+
+  db: #сервис базы данных для wordpress
+   image: mariadb:12.3.2 #докер образ из которого будет создан контейнер mariadb
+
+   environment: #переменные окружения которые передаются внутрь контейнера mariadb
+     MARIADB_DATABASE: ${DB_NAME}
+     MARIADB_USER: ${DB_USER}
+     MARIADB_PASSWORD: ${DB_PASSWORD}
+     MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+   volumes: #постоянное хранилище базы данных
+     - db_data:/var/lib/mysql
+
+
+
+
+  wordpress: #само веб приложение 
+   image: wordpress:7.0.2
+
+   restart: unless-stopped
+
+   depends-on:
+     - db
+
+   environment: #данные для подключения Wordpress к MariaDb
+     WORDPRESS_DB_HOST: db:3306 #стандартный порт mysql/mariadb
+     WORDPRESS_DB_NAME: ${DB_NAME}
+     WORDPRESS_DB_USER: ${DB_USER}
+     WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+   
+   volumes: #постоянное хранилище файлов wordpress
+     - wordpress_data:/var/lib/www/html 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+volumes:
+  db_data: #данные mariadb
+  wordpress_data: #файлы wordpress
