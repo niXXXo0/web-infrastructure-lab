@@ -36,6 +36,24 @@ services:
 
 
 
+  nginx:
+   image: nginx:stable
+
+   restart: unless-stopped
+
+   depends_on:
+     - wordpress
+
+   ports:
+     - "80:80"
+
+   volumes: 
+     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro #read-only
+
+
+
+
+
 
 
 
