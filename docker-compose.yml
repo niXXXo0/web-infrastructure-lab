@@ -21,7 +21,7 @@ services:
 
    restart: unless-stopped
 
-   depends-on:
+   depends_on:
      - db
 
    environment: #данные для подключения Wordpress к MariaDb
