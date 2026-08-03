@@ -67,6 +67,22 @@ services:
 
 
 
+  grafana:
+    image: grafana/grafana:latest
+
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      - prometheus
+
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+
+
 
 
 
