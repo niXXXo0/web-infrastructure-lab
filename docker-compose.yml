@@ -4,6 +4,8 @@ services:
   db: #сервис базы данных для wordpress
    image: mariadb:12.3.2 #докер образ из которого будет создан контейнер mariadb
 
+   restart: unless-stopped
+
    environment: #переменные окружения которые передаются внутрь контейнера mariadb
      MARIADB_DATABASE: ${DB_NAME}
      MARIADB_USER: ${DB_USER}
