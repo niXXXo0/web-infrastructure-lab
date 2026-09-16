@@ -81,7 +81,7 @@ services:
 
 
    healthcheck:
-     test: ["CMD", "wget", "--spider", "-q", "http:localhost:9090/-/healthy"]
+     test: ["CMD", "wget", "-q", "-O" , "/dev/null", "http:localhost:9090/-/healthy"]
      interval: 10s
      timeout: 5s
      retries: 5
