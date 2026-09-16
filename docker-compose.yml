@@ -31,7 +31,7 @@ services:
      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
    
    volumes: #постоянное хранилище файлов wordpress
-     - wordpress_data:/var/lib/www/html 
+     - wordpress_data:/var/www/html 
 
 
 
@@ -64,6 +64,7 @@ services:
 
    volumes:
      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+     - prometheus_data:/prometheus
 
 
 
@@ -80,6 +81,7 @@ services:
 
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
 
 
 
@@ -109,3 +111,5 @@ services:
 volumes:
   db_data: #данные mariadb
   wordpress_data: #файлы wordpress
+  prometheus_data:
+  grafana_data: 
