@@ -130,6 +130,12 @@ services:
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
 
+    healthcheck:
+      test: ["CMD", "wget", "-q", "O", "dev/null", "http://localhost:9100/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
 
 
