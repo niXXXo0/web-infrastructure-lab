@@ -51,7 +51,7 @@ services:
 
 
   nginx:
-   image: nginx:stable
+   image: nginx:1.30.4
 
    restart: unless-stopped
 
@@ -75,7 +75,7 @@ services:
 
 
   prometheus:
-   image: prom/prometheus:latest
+   image: prom/prometheus:v3.13.2
 
    restart: unless-stopped
 
@@ -94,7 +94,7 @@ services:
 
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.2.2-ubuntu
 
     restart: unless-stopped
 
@@ -115,7 +115,7 @@ services:
 
 
   node_exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1
 
     restart: unless-stopped
 
