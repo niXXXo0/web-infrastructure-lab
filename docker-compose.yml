@@ -13,6 +13,11 @@ services:
    volumes: #постоянное хранилище базы данных
      - db_data:/var/lib/mysql
 
+   healthcheck:
+     test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+     interval: 10s
+     timeout: 5s
+     retries: 5
 
 
 
@@ -22,7 +27,9 @@ services:
    restart: unless-stopped
 
    depends_on:
-     - db
+    db:
+       condition: service_healthy
+    
 
    environment: #данные для подключения Wordpress к MariaDb
      WORDPRESS_DB_HOST: db:3306 #стандартный порт mysql/mariadb
@@ -59,8 +66,6 @@ services:
 
    restart: unless-stopped
 
-   ports:
-     - "9090:9090"
 
    volumes:
      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -73,8 +78,6 @@ services:
 
     restart: unless-stopped
 
-    ports:
-      - "3000:3000"
 
     depends_on:
       - prometheus
@@ -90,8 +93,6 @@ services:
 
     restart: unless-stopped
 
-    ports:
-      - "9100:9100"
 
     volumes:
       - /proc:/host/proc:ro
