@@ -58,6 +58,12 @@ services:
    depends_on:
      - wordpress
 
+   healthcheck:
+     test: ["CMD", "curl", "-f", "http://localhost/"]
+     interval: 10s
+     timeout: 5s
+     retries: 5
+
    ports:
      - "80:80"
      - "443:443"
