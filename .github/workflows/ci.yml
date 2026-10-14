@@ -46,4 +46,4 @@ jobs:
           docker run --rm \
             -v "$PWD/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
             prom/prometheus:v3.13.2 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml 
