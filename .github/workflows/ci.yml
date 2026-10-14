@@ -1,0 +1,47 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate infrastructure configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        env:
+          DB_NAME: wordpress
+          DB_USER: wordpress
+          DB_PASSWORD: ci_test_password
+          DB_ROOT_PASSWORD: ci_test_root_password
+        run: docker compose config --quiet
+
+      - name: Generate temporary TLS certificate
+        run: |
+          mkdir -p "$RUNNER_TEMP/nginx-ssl"
+          openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+            -keyout "$RUNNER_TEMP/nginx-ssl/site.local.key" \
+            -out "$RUNNER_TEMP/nginx-ssl/site.local.crt" \
+            -subj "/CN=site.local"
+
+      - name: Validate Nginx configuration
+        run: |
+          docker run --rm \
+            -v "$PWD/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$PWD/nginx/wp-admin-access.conf:/etc/nginx/wp-admin-access.conf:ro" \
+            -v "$RUNNER_TEMP/nginx-ssl:/etc/nginx/ssl:ro" \
+            nginx:1.30.4 nginx -t
+
+      - name: Validate Prometheus configuration
+        run: |
+          docker run --rm \
+            -v "$PWD/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            prom/prometheus:v3.13.2 \
+            promtool check config /etc/prometheus/prometheus.yml
