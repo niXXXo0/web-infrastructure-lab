@@ -1,0 +1,244 @@
+---
+- name: Deploy web infrastructure lab
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    project_source: "{{ playbook_dir }}/.."
+
+  pre_tasks:
+    - name: Verify supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == "Debian"
+        fail_msg: "This playbook supports Debian only!!!"
+    - name: Verify admin IP is configured
+      ansible.builtin.assert:
+        that:
+          - admin_allowed_ip | default('') | length > 0
+        fail_msg: "Set admin_allowed_ip in ansible/group_vars/all.yml before deployment!!!"
+
+  tasks:
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - openssl
+          - fail2ban
+        state: present
+
+    - name: Create directory for APT keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Docker repository signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Get Debian package architecture
+      ansible.builtin.command:
+        argv:
+          - dpkg
+          - --print-architecture
+      register: docker_deb_arch
+      changed_when: false
+
+    - name: Add official Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ docker_deb_arch.stdout }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_facts['distribution_release'] }} stable"
+        filename: docker
+        state: present
+        update_cache: true
+
+    - name: Install Docker Engine and Compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy Docker Compose configuration
+      ansible.builtin.copy:
+        src: "{{ project_source }}/docker-compose.yml"
+        dest: "{{ project_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Copy Nginx configuration
+      ansible.builtin.copy:
+        src: "{{ project_source }}/nginx/"
+        dest: "{{ project_dir }}/nginx/"
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Configure WordPress admin IP access
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/wp-admin-access.conf.j2"
+        dest: "{{ project_dir }}/nginx/wp-admin-access.conf"
+        owner: root
+        group: root
+        mode: "0644"
+
+
+    - name: Copy Prometheus configuration
+      ansible.builtin.copy:
+        src: "{{ project_source }}/prometheus/"
+        dest: "{{ project_dir }}/prometheus/"
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Copy Grafana provisioning
+      ansible.builtin.copy:
+        src: "{{ project_source }}/grafana/"
+        dest: "{{ project_dir }}/grafana/"
+        owner: root
+        group: root
+        mode: preserve
+
+
+    - name: Create env file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/.env.j2"
+        dest: "{{ project_dir }}/.env"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Create directory for TLS certificates
+      ansible.builtin.file:
+        path: "{{ project_dir }}/nginx/ssl"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Check whether TLS certificate exists
+      ansible.builtin.stat:
+        path: "{{ project_dir }}/nginx/ssl/site.local.crt"
+      register: tls_cert
+
+    - name: Check whether TLS private key exists
+      ansible.builtin.stat:
+        path: "{{ project_dir }}/nginx/ssl/site.local.key"
+      register: tls_key
+
+    - name: Generate self-signed TLS certificate
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -nodes
+          - -days
+          - "365"
+          - -newkey
+          - rsa:2048
+          - -keyout
+          - "{{ project_dir }}/nginx/ssl/site.local.key"
+          - -out
+          - "{{ project_dir }}/nginx/ssl/site.local.crt"
+          - -subj
+          - "/CN={{ wordpress_domain }}"
+          - -addext
+          - "subjectAltName=DNS:{{ wordpress_domain }},DNS:{{ grafana_domain }}"
+      when:
+        - generate_self_signed_tls | bool
+        - not tls_cert.stat.exists or not tls_key.stat.exists
+      no_log: true
+
+    - name: Set TLS private key permissions
+      ansible.builtin.file:
+        path: "{{ project_dir }}/nginx/ssl/site.local.key"
+        owner: root
+        group: root
+        mode: "0600"
+      when: generate_self_signed_tls | bool
+
+    - name: Set TLS certificate permissions
+      ansible.builtin.file:
+        path: "{{ project_dir }}/nginx/ssl/site.local.crt"
+        owner: root
+        group: root
+        mode: "0644"
+      when: generate_self_signed_tls | bool
+
+
+    - name: Install fail2bam configuration
+      ansible.builtin.copy:
+        src: "{{ project_source }}/fail2ban/jail.local"
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Fail2ban
+
+    - name: Enable and Start fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+
+    - name: Validate Docker Compose configuration
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - config
+        chdir: "{{ project_dir }}"
+      changed_when: false
+      no_log: true
+
+
+    - name: Start Docker Compose services
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_dir }}"
+        state: present
+
+
+
+
+
+
+
+
+
+  handlers:
+    - name: Restart Fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted

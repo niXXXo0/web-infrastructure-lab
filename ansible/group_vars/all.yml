@@ -1,0 +1,15 @@
+project_name: web-infrastructure-lab
+project_dir: /opt/web-infrastructure-lab
+
+
+wordpress_domain: site.local
+grafana_domain: metrics.local
+
+
+admin_allowed_ip: ""
+
+generate_self_signed_tls: true
+
+
+db_name: wordpress
+db_user: wordpress
