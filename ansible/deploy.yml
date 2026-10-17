@@ -156,6 +156,14 @@
         path: "{{ project_dir }}/nginx/ssl/site.local.key"
       register: tls_key
 
+
+    - name: Verify TLS certificate and key state
+      ansible.builtin.assert:
+        that:
+          - tls_cert.stat.exists == tls_key.stat.exists
+        fail_msg: >-
+          TLS certificate and private key must either both exist or both be absent. ~(Check nginx/ssl)~
+
     - name: Generate self-signed TLS certificate
       ansible.builtin.command:
         argv:
@@ -177,7 +185,8 @@
           - "subjectAltName=DNS:{{ wordpress_domain }},DNS:{{ grafana_domain }}"
       when:
         - generate_self_signed_tls | bool
-        - not tls_cert.stat.exists or not tls_key.stat.exists
+        - not tls_cert.stat.exists
+        - not tls_key.stat.exists 
       no_log: true
 
     - name: Set TLS private key permissions
